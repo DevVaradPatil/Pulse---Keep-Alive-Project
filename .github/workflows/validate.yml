@@ -1,0 +1,56 @@
+name: validate
+
+# Runs on every push and pull request. The point is that it must be impossible
+# to break the monitoring by adding a project carelessly: a bad targets.json
+# fails here, in a pull request, rather than silently monitoring nothing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulse-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate config/targets.json
+        run: node src/tools/validate-config.js
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format
+
+      - name: Type-check (JSDoc + checkJs)
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Proves the whole path end to end without a single network request or a
+      # single secret: parse, validate, resolve, plan.
+      - name: Dry run against the real config
+        run: node src/run.js --dry-run --skip-secrets
+
+      - name: Dry run against the test fixture
+        run: node src/run.js --dry-run --skip-secrets --config test/fixtures/targets.fixture.json

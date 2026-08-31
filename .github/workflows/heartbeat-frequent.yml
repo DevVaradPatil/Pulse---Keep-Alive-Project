@@ -1,0 +1,57 @@
+name: heartbeat-frequent
+
+# Alert-only. Keeps short-spin-down services (Render free: 15 minutes) awake
+# between daily runs. It deliberately writes no history: at this cadence that
+# would be ~144 commits a day to the status branch. The daily run is what
+# records history, and it covers frequent-tier targets too.
+#
+# Honest limitation, documented in the README as well: GitHub's scheduler is
+# best-effort and routinely runs 5-30 minutes late under load. A 10-minute cron
+# that drifts by 20 minutes will let a Render service spin down. Ten minutes
+# rather than fourteen buys margin, not a guarantee. If a service genuinely must
+# never be cold, the supported answer is a paid instance.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Check a single target by id (leave blank for all frequent-tier targets)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # A late run must not stack on top of the next scheduled one.
+  group: pulse-heartbeat-frequent
+  cancel-in-progress: true
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install database drivers, if this run needs any
+        run: node src/tools/ensure-drivers.js --tier frequent
+
+      - name: Run the frequent-tier checks
+        env:
+          PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: |
+          node src/run.js \
+            --tier frequent \
+            --notify \
+            ${{ inputs.target && format('--target {0}', inputs.target) || '' }}

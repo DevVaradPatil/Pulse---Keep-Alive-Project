@@ -1,0 +1,68 @@
+name: keepalive
+
+# The failure mode this project exists to avoid, applied to itself.
+#
+# GitHub disables scheduled workflows in a repository after 60 days with no
+# commit activity, and only a new commit resets that timer. It emails the repo
+# owner when it happens, but that mail is easy to miss - and a keep-alive system
+# that quietly dies after two months is worse than none at all, because you will
+# believe you are covered while your projects are being paused one by one.
+#
+# So: once a week, look at how old the last commit on the default branch is. If
+# it is over 45 days (15 days of margin), make a trivial timestamp commit.
+
+on:
+  schedule:
+    - cron: '43 4 * * 1' # Mondays, 04:43 UTC = 10:13 IST
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Commit even if the repository is not yet quiet'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pulse-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Commit a timestamp if the repository has gone quiet
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          THRESHOLD_DAYS=45
+
+          LAST_COMMIT_EPOCH="$(git log -1 --format=%ct)"
+          AGE_DAYS=$(( ( $(date -u +%s) - LAST_COMMIT_EPOCH ) / 86400 ))
+          echo "Last commit on ${GITHUB_REF_NAME}: ${AGE_DAYS} day(s) ago (threshold: ${THRESHOLD_DAYS})."
+          echo "### Pulse keepalive" >> "$GITHUB_STEP_SUMMARY"
+          echo "Last commit was **${AGE_DAYS} day(s)** ago. GitHub disables schedules at 60." >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$AGE_DAYS" -lt "$THRESHOLD_DAYS" ] && [ "$FORCE" != "true" ]; then
+            echo "Under the threshold - the scheduler timer is safe. Nothing to do."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No commit needed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/last-keepalive
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/last-keepalive
+          # No [skip ci]: this commit exists precisely to be repository activity.
+          git commit -m "chore(keepalive): reset GitHub's 60-day scheduled-workflow timer"
+          git push
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Committed a timestamp to keep the scheduled workflows enabled." >> "$GITHUB_STEP_SUMMARY"

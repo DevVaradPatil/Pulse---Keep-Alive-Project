@@ -1,0 +1,118 @@
+name: heartbeat-daily
+
+# The workhorse. Checks every enabled target (both tiers), records the result in
+# status/history.json on the `status` branch, and alerts on failure.
+#
+# Timing notes:
+#  - Cron is UTC. 21:17 UTC is 02:47 IST.
+#  - :00 is by far the most congested minute on GitHub's scheduler, so this
+#    deliberately avoids it. Scheduled runs are best-effort and are routinely
+#    delayed 5-30 minutes under load, which is irrelevant against a 7-day
+#    (Supabase) or 30-day (Atlas) inactivity window.
+
+on:
+  schedule:
+    - cron: '17 21 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Check a single target by id (leave blank for all)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Resolve and validate the config without sending requests'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write # push the history commit to the status branch
+  issues: write # open, update and close alert issues
+
+concurrency:
+  group: pulse-heartbeat-daily
+  cancel-in-progress: false
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No `npm ci` here on purpose: the pinger has zero runtime dependencies,
+      # so it runs straight from source. This step installs a driver only if
+      # this run's config actually contains a target that needs one.
+      - name: Install database drivers, if this run needs any
+        run: node src/tools/ensure-drivers.js --tier daily
+
+      - name: Run the checks
+        id: checks
+        continue-on-error: true # so history is still recorded for a failing run
+        env:
+          # Every repository secret, as one JSON blob. This is what makes adding
+          # a project a one-file change: a new ${SECRET} in targets.json needs no
+          # workflow edit. See src/config/load.js resolveEnv() for the trade-off.
+          PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: |
+          node src/run.js \
+            --tier daily \
+            --notify \
+            --out .pulse/run.json \
+            ${{ inputs.target && format('--target {0}', inputs.target) || '' }} \
+            ${{ inputs.dry_run && '--dry-run --skip-secrets' || '' }}
+
+      - name: Check out the status branch
+        if: ${{ always() && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git clone --branch status --single-branch --depth 1 "$REMOTE" status-data 2>/dev/null; then
+            echo "Cloned the existing status branch."
+          else
+            echo "No status branch yet - creating it as an orphan branch."
+            git clone --depth 1 "$REMOTE" status-data
+            cd status-data
+            git checkout --orphan status
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+      - name: Record the run in the history
+        if: ${{ always() && !inputs.dry_run && hashFiles('.pulse/run.json') != '' }}
+        run: |
+          node src/tools/record-history.js \
+            --run .pulse/run.json \
+            --history status-data/status/history.json
+
+      - name: Commit the history
+        if: ${{ always() && !inputs.dry_run && hashFiles('.pulse/run.json') != '' }}
+        working-directory: status-data
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/history.json
+          if git diff --quiet --cached; then
+            echo "History unchanged; nothing to commit."
+            exit 0
+          fi
+          # [skip ci] so this commit does not retrigger any workflow. It still
+          # counts as repository activity for GitHub's 60-day scheduler timer.
+          git commit -m "chore(status): record heartbeat $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
+          git push origin HEAD:status
+
+      # The alert of last resort: a failing job emails you, with no setup at all.
+      - name: Fail the run if any target is down
+        if: ${{ steps.checks.outcome == 'failure' }}
+        run: |
+          echo "::error::At least one target failed its check. See the job summary above."
+          exit 1
