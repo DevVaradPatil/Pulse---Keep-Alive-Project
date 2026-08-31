@@ -1,0 +1,13 @@
+{
+  "$schema": "./targets.schema.json",
+  "defaults": {
+    "timeoutMs": 30000,
+    "retries": 2,
+    "expectStatus": 200,
+    "concurrency": 5,
+    "jitterMs": 2000,
+    "backoffBaseMs": 1000,
+    "backoffMaxMs": 15000
+  },
+  "targets": []
+}

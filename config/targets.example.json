@@ -1,0 +1,53 @@
+{
+  "$schema": "./targets.schema.json",
+  "defaults": {
+    "timeoutMs": 30000,
+    "retries": 2,
+    "expectStatus": 200,
+    "concurrency": 5,
+    "jitterMs": 2000,
+    "backoffBaseMs": 1000,
+    "backoffMaxMs": 15000
+  },
+  "targets": [
+    {
+      "id": "example-static-supabase",
+      "name": "Example Static Site",
+      "type": "supabase",
+      "tier": "daily",
+      "enabled": true,
+      "platform": "vercel+supabase",
+      "publicUrl": "https://example-static.vercel.app",
+      "supabaseUrl": "https://exampleprojectref.supabase.co",
+      "apiKey": "${EXAMPLE_STATIC_SUPABASE_ANON_KEY}",
+      "table": "heartbeat",
+      "requiredSecrets": ["EXAMPLE_STATIC_SUPABASE_ANON_KEY"],
+      "notes": "Pure static frontend, so there is no backend to call. Hits PostgREST directly, which reaches Postgres and resets the 7-day pause timer."
+    },
+    {
+      "id": "example-api",
+      "name": "Example API",
+      "type": "http",
+      "tier": "frequent",
+      "enabled": true,
+      "platform": "render+postgres",
+      "url": "https://example-api.onrender.com/api/health",
+      "publicUrl": "https://example-api.onrender.com",
+      "expectStatus": 200,
+      "expectBodyContains": "\"ok\":true",
+      "notes": "Render free service: spins down after 15 minutes idle. The health endpoint runs SELECT 1, so a cached 200 cannot pass for a live database."
+    },
+    {
+      "id": "example-cluster",
+      "name": "Example Atlas Cluster",
+      "type": "mongo",
+      "tier": "daily",
+      "enabled": false,
+      "platform": "atlas-m0",
+      "connectionString": "${EXAMPLE_CLUSTER_MONGO_URI}",
+      "dbName": "admin",
+      "requiredSecrets": ["EXAMPLE_CLUSTER_MONGO_URI"],
+      "notes": "Fallback for a cluster with no deployed app in front of it. Requires 0.0.0.0/0 in the Atlas IP access list - see SETUP.md before enabling."
+    }
+  ]
+}
