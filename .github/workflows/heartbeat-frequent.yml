@@ -61,6 +61,8 @@ jobs:
           node-version: '20'
 
       - name: Install database drivers, if this run needs any
+        env:
+          PULSE_TARGETS_JSON: ${{ secrets.PULSE_TARGETS_JSON }}
         run: node src/tools/ensure-drivers.js --tier frequent
 
       - name: Run the frequent-tier checks

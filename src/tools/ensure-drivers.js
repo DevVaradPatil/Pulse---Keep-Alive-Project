@@ -7,15 +7,21 @@
  * source in a workflow. Only the `mongo` check type needs a driver, so it is
  * installed on demand — and only for runs whose config contains a mongo target.
  *
+ * Reads the config through the same precedence as the runner itself
+ * (`--config` > `PULSE_TARGETS_JSON` secret > committed `config/targets.json`),
+ * so a hidden target list in a secret is seen here too. Missing that was a real
+ * bug: this step would check the empty committed stub, decide no driver was
+ * needed, and the run would then fail on a mongo target it never installed a
+ * driver for.
+ *
  *   node src/tools/ensure-drivers.js [--tier daily] [--config <path>]
  *
  * Prints what it did and exits 0 when nothing was needed.
  */
 
-import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
-import { DEFAULT_CONFIG_PATH } from '../config/load.js';
+import { readConfigSource, resolveEnv } from '../config/load.js';
 
 /** Check type → npm package. A new type needing a driver adds one line here. */
 const DRIVERS = Object.freeze({
@@ -24,12 +30,15 @@ const DRIVERS = Object.freeze({
 
 const { values } = parseArgs({
   options: {
-    config: { type: 'string', default: DEFAULT_CONFIG_PATH },
+    config: { type: 'string' },
     tier: { type: 'string' },
   },
 });
 
-const config = JSON.parse(await readFile(/** @type {string} */ (values.config), 'utf8'));
+const { raw, label } = await readConfigSource({ configPath: values.config, env: resolveEnv() });
+const config = /** @type {{ targets?: Array<Record<string, any>> }} */ (raw);
+console.log(`Checking driver needs against ${label}`);
+
 /** @type {Array<Record<string, any>>} */
 const targets = (config.targets ?? []).filter(
   (/** @type {Record<string, any>} */ target) =>

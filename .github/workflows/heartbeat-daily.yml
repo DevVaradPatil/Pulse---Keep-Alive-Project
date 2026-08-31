@@ -47,8 +47,13 @@ jobs:
 
       # No `npm ci` here on purpose: the pinger has zero runtime dependencies,
       # so it runs straight from source. This step installs a driver only if
-      # this run's config actually contains a target that needs one.
+      # this run's config actually contains a target that needs one - and it
+      # has to see the same config the run below will use, hidden-targets
+      # secret included, or a mongo target added only there never gets its
+      # driver installed.
       - name: Install database drivers, if this run needs any
+        env:
+          PULSE_TARGETS_JSON: ${{ secrets.PULSE_TARGETS_JSON }}
         run: node src/tools/ensure-drivers.js --tier daily
 
       - name: Run the checks
