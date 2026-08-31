@@ -10,3 +10,10 @@ Thumbs.db
 !.env.example
 .vscode/
 .idea/
+
+# Your real target list. This holds your URLs and project names, and in the
+# hidden-targets mode it must never be committed - it lives in the
+# PULSE_TARGETS_JSON repository secret instead. Ignored so it cannot be.
+my-targets.json
+targets.local.json
+*.targets.json

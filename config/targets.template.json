@@ -1,0 +1,53 @@
+{
+  "$schema": "./targets.schema.json",
+
+  "defaults": {
+    "timeoutMs": 30000,
+    "retries": 2,
+    "expectStatus": 200,
+    "concurrency": 5,
+    "jitterMs": 2000
+  },
+
+  "targets": [
+    {
+      "id": "example-supabase-project",
+      "name": "Example Supabase Project",
+      "type": "supabase",
+      "tier": "daily",
+      "platform": "vercel+supabase",
+      "supabaseUrl": "https://REPLACE-PROJECT-REF.supabase.co",
+      "apiKey": "${EXAMPLE_SUPABASE_PROJECT_SUPABASE_ANON_KEY}",
+      "table": "heartbeat",
+      "requiredSecrets": ["EXAMPLE_SUPABASE_PROJECT_SUPABASE_ANON_KEY"],
+      "publicUrl": "https://replace-me.vercel.app",
+      "notes": "Static frontend, so the check calls PostgREST directly and reaches Postgres."
+    },
+
+    {
+      "id": "example-backend",
+      "name": "Example Backend",
+      "type": "http",
+      "tier": "daily",
+      "platform": "render+postgres",
+      "url": "https://replace-me.onrender.com/api/health",
+      "publicUrl": "https://replace-me.onrender.com",
+      "expectStatus": 200,
+      "expectBodyContains": "\"ok\":true",
+      "notes": "Health endpoint from templates/ - it queries the database on every request."
+    },
+
+    {
+      "id": "example-atlas-cluster",
+      "name": "Example Atlas Cluster",
+      "type": "mongo",
+      "tier": "daily",
+      "platform": "atlas-m0",
+      "connectionString": "${EXAMPLE_ATLAS_CLUSTER_MONGO_URI}",
+      "dbName": "admin",
+      "requiredSecrets": ["EXAMPLE_ATLAS_CLUSTER_MONGO_URI"],
+      "enabled": false,
+      "notes": "Only for a cluster with no app in front of it. Needs 0.0.0.0/0 in the Atlas IP access list - read SETUP.md before enabling."
+    }
+  ]
+}

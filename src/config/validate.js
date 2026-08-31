@@ -65,7 +65,8 @@ export function validateConfig(rawConfig, schema) {
 
   if (targets.length === 0) {
     warnings.push(
-      'config/targets.json has no targets, so every run will be a no-op. See SETUP.md, "Add a new project in 60 seconds".'
+      'No targets, so every run will be a no-op. Either add entries to config/targets.json, or - if you ' +
+        'keep the target list out of the repository - set the PULSE_TARGETS_JSON secret. See SETUP.md.'
     );
   }
 

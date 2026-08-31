@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit -p jsconfig.json",
     "verify": "npm run lint && npm run format && npm run typecheck && npm test && npm run validate && npm run estimate",
     "dashboard": "node src/tools/serve-dashboard.js",
-    "estimate": "node src/tools/estimate-minutes.js"
+    "estimate": "node src/tools/estimate-minutes.js",
+    "targets": "node src/tools/validate-config.js --config my-targets.json && node src/run.js --dry-run --skip-secrets --config my-targets.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

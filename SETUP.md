@@ -1,10 +1,85 @@
 # Pulse — setup
 
-Everything here is a placeholder. No URL, key, or project name of yours appears anywhere in this
-repository, and none should.
+No URL, key, or project name of yours appears anywhere in this repository, and none should.
 
-Work top to bottom once. After that, [§4 "Add a new project in 60 seconds"](#4-add-a-new-project-in-60-seconds)
-is the only section you will ever reopen.
+---
+
+## Quickstart — public repo, hidden targets
+
+**This is the mode this repo is set up for.** The code is public; your project list is not. Sections
+00–6 below are reference; this is the part you follow.
+
+### One-time
+
+1. **Workflow permissions.** Settings → Actions → General → Workflow permissions →
+   **Read and write permissions**. Without it the daily run cannot save history or open alert issues.
+2. **Leave `PULSE_PUBLISH_DASHBOARD` unset.** Publishing the dashboard would republish the names you
+   are hiding. You view status locally with `npm run dashboard`.
+3. **Never edit `config/targets.json`.** It stays the empty stub it ships as. That is the point.
+
+### Adding your projects
+
+Everything goes in **one local file**, `my-targets.json`, which is git-ignored and can never be
+committed. Start from the template:
+
+```bash
+cp config/targets.template.json my-targets.json
+```
+
+Fill it in — one entry per project. Which fields depend on the check type:
+
+| Your project                                      | `type`     | Where the link goes                                           | Secret needed       |
+| ------------------------------------------------- | ---------- | ------------------------------------------------------------- | ------------------- |
+| Static frontend on Supabase (no backend of yours) | `supabase` | `supabaseUrl` = `https://<ref>.supabase.co`                   | anon key → `apiKey` |
+| Anything with a deployed backend                  | `http`     | `url` = your health endpoint, e.g. `https://x.com/api/health` | usually none        |
+| Atlas cluster with no app in front of it          | `mongo`    | nothing — the URI **is** the secret → `connectionString`      | Mongo URI           |
+| Static site, no database (Vercel/Netlify)         | `http`     | `url` = the site URL. Monitoring only; nothing needs waking.  | none                |
+
+`publicUrl` is optional on every type — it is only the link the dashboard card points at.
+
+**Secrets never go in this file.** Write `"apiKey": "${MYAPP_SUPABASE_ANON_KEY}"`, list that name in
+`requiredSecrets`, and add the real value as a repository secret.
+
+### Check it before you paste it
+
+```bash
+npm run targets
+```
+
+That validates `my-targets.json` and prints exactly what would be pinged, without sending a request
+or needing any secret set.
+
+### Publish it as a secret
+
+Settings → Secrets and variables → Actions → New repository secret:
+
+- Name: **`PULSE_TARGETS_JSON`**
+- Value: the entire contents of `my-targets.json`
+
+Then add one secret per `${NAME}` you referenced (naming convention in §3).
+
+Repeat those two steps — edit the file, re-paste the secret — whenever you add a project. Keep
+`my-targets.json` on your machine; it is the editable copy.
+
+### Verify
+
+Actions → **heartbeat-daily** → Run workflow. Green tick = done. Then:
+
+```bash
+npm run dashboard
+```
+
+### What this mode guarantees
+
+Pulse switches itself to a private posture as soon as the config comes from a secret:
+
+- The `status` branch history, alert issues and job summaries carry the target **`id`** only — never
+  the name, platform, URL, or notes.
+- Every target URL and hostname is registered with `::add-mask::`, so public Actions logs show `***`.
+- Failure text (`expected HTTP 200 but got 503`) is kept, so a red dashboard is still debuggable.
+
+Pick ids that are not themselves revealing (`api-1`, not `client-acme-invoices`) — the id is the one
+thing that is published.
 
 ---
 
