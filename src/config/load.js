@@ -78,11 +78,64 @@ export function resolveEnv(processEnv = process.env) {
 }
 
 /**
+ * Decide where the target list comes from.
+ *
+ * Precedence, most explicit first:
+ *
+ *   1. `--config <path>`            an explicit file, always wins
+ *   2. `PULSE_TARGETS_JSON`         the whole config as one secret
+ *   3. `config/targets.json`        the committed file
+ *
+ * Option 2 exists for a public repository that must not reveal *what* is being
+ * monitored. `${SECRET}` references already keep keys out of the repo, but the
+ * URLs, project names and platform labels are still identifying, and a public
+ * repo publishes them to anyone who looks. Putting the entire config in one
+ * repository secret leaves nothing in the repo but code.
+ *
+ * The cost is real and worth stating: no diff, no pull-request review, and no
+ * editor autocomplete when you change it. A private repository keeps all of
+ * that and needs none of this - see SETUP.md, "Choose your mode".
+ *
+ * @param {{ configPath?: string, env: Record<string, string | undefined> }} options
+ * @returns {Promise<{ raw: unknown, label: string, fromSecret: boolean }>}
+ */
+export async function readConfigSource({ configPath, env }) {
+  if (configPath) {
+    return { raw: await readJson(configPath), label: configPath, fromSecret: false };
+  }
+
+  const inline = env.PULSE_TARGETS_JSON;
+  if (inline && inline.trim() !== '') {
+    try {
+      return { raw: JSON.parse(inline), label: 'PULSE_TARGETS_JSON', fromSecret: true };
+    } catch (error) {
+      throw new ConfigError('PULSE_TARGETS_JSON is set but is not valid JSON.', {
+        cause: error,
+        hint: [
+          'It must hold the entire contents of a targets file, the same shape as config/targets.json.',
+          'Check it locally before pasting it into the secret:',
+          "  node -e \"JSON.parse(require('fs').readFileSync('my-targets.json','utf8'))\"",
+        ].join('\n'),
+      });
+    }
+  }
+
+  return {
+    raw: await readJson(DEFAULT_CONFIG_PATH),
+    label: DEFAULT_CONFIG_PATH,
+    fromSecret: false,
+  };
+}
+
+/**
  * @typedef {object} LoadedConfig
  * @property {import('../types.js').RunDefaults} defaults
  * @property {import('../types.js').Target[]} targets Enabled targets only, secrets resolved.
  * @property {string[]} warnings
  * @property {number} disabledCount
+ * @property {string} source Where the config came from, for messages.
+ * @property {boolean} fromSecret Whether it came from PULSE_TARGETS_JSON, which changes what has to be masked.
+ * @property {boolean} publishDetails Whether names, platforms, URLs and notes may leave this repository.
  */
 
 /**
@@ -95,26 +148,34 @@ export function resolveEnv(processEnv = process.env) {
  */
 export async function loadConfig(options = {}) {
   const {
-    configPath = DEFAULT_CONFIG_PATH,
+    configPath,
     schemaPath = DEFAULT_SCHEMA_PATH,
     env = resolveEnv(),
     allowMissingSecrets = false,
   } = options;
 
-  const raw = await readJson(configPath);
+  const { raw, label, fromSecret } = await readConfigSource({ configPath, env });
   const schema = await readJson(schemaPath);
 
   const { errors, warnings } = validateConfig(raw, schema);
   if (errors.length > 0) {
-    throw new ConfigError(`${configPath} is not valid:`, {
+    throw new ConfigError(`${label} is not valid:`, {
       problems: errors,
       hint: 'Fix the entries above. `npm run validate` reproduces this locally, and validate.yml runs it on every push.',
     });
   }
 
-  const config = /** @type {{ defaults?: object, targets: Array<Record<string, any>> }} */ (raw);
+  const config =
+    /** @type {{ defaults?: object, privacy?: { publishDetails?: boolean }, targets: Array<Record<string, any>> }} */ (
+      raw
+    );
   /** @type {import('../types.js').RunDefaults} */
   const defaults = { ...BUILT_IN_DEFAULTS, ...(config.defaults ?? {}) };
+
+  // Privacy defaults to "publish everything", except when the config arrived as
+  // a secret: hiding the target list and then republishing the names and URLs
+  // in the history file would defeat the point. An explicit value always wins.
+  const publishDetails = config.privacy?.publishDetails ?? !fromSecret;
 
   const enabled = config.targets.filter((target) => target.enabled !== false);
   const targets = enabled.map((target) =>
@@ -126,6 +187,9 @@ export async function loadConfig(options = {}) {
     targets,
     warnings,
     disabledCount: config.targets.length - enabled.length,
+    source: label,
+    fromSecret,
+    publishDetails,
   };
 }
 

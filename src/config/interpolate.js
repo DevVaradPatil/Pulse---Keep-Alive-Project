@@ -1,10 +1,12 @@
 /**
  * Secret interpolation for the config file.
  *
- * This repo is public, so no key may ever be committed. Instead any string in
+ * No key is ever committed, whatever the repository's visibility. Any string in
  * `config/targets.json` may contain `${SECRET_NAME}` placeholders which are
  * resolved from `process.env` at runtime, where GitHub Actions injects them
- * from repository secrets.
+ * from repository secrets. A private repository is not an excuse to inline one:
+ * every collaborator can read it, and a repo that starts private can be made
+ * public with one click years later.
  *
  * The one behaviour that must never happen is silently sending a request with
  * the literal text `${SPOTIFY_SUPABASE_ANON_KEY}` as the API key, because the
@@ -76,14 +78,15 @@ export function interpolate(value, env, options = {}) {
 
   if (missing.length > 0 && !allowMissing) {
     throw new MissingSecretError(
-      `${missing.length} secret${missing.length === 1 ? '' : 's'} referenced by config/targets.json ${
+      `${missing.length} secret${missing.length === 1 ? '' : 's'} referenced by the target config ${
         missing.length === 1 ? 'is' : 'are'
       } not set in the environment:`,
       {
         problems: missing.map((ref) => `${ref.name} (used at ${ref.path})`),
         hint: [
-          'Set them as GitHub repository secrets (Settings > Secrets and variables > Actions),',
-          'and add them to the `env:` block of the workflow that runs this check.',
+          'Set them as GitHub repository secrets: Settings > Secrets and variables > Actions.',
+          'The heartbeat workflows pass every repository secret through, so no workflow edit is needed',
+          '(unless you removed the PULSE_SECRETS_JSON line, in which case add an env: entry too).',
           'Locally, export them in your shell first:',
           ...unique(missing.map((ref) => ref.name)).map((name) => `  export ${name}='...'`),
         ].join('\n'),

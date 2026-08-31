@@ -8,7 +8,7 @@
  *  - duplicate `id`s (the dashboard key, so a duplicate would overwrite history)
  *  - fields that belong to a different check type
  *  - `${SECRET}` references not declared in `requiredSecrets`, and vice versa
- *  - credentials that must never be literals in a public repo
+ *  - credentials that must never be committed at any visibility
  */
 
 import { assertRegistryMatchesSchema, checks, CHECK_TYPES } from '../checks/index.js';
@@ -176,7 +176,11 @@ function validateSecrets(target, where, errors) {
 }
 
 /**
- * Values that must never be committed to a public repo.
+ * Values that must never be committed, whatever the repository's visibility.
+ *
+ * Private is not a safe place for a password either: every collaborator can
+ * read it, so can anyone who obtains a token, and the history keeps the value
+ * for anyone who later gains access.
  *
  * @param {Record<string, any>} target
  * @param {string} where
@@ -189,19 +193,19 @@ function validateCredentialHygiene(target, where, errors, warnings) {
 
   if (target.type === 'mongo' && !isRef(target.connectionString)) {
     errors.push(
-      `${where}: connectionString must be a \${SECRET} reference. A Mongo URI contains a password and this repository is public.`
+      `${where}: connectionString must be a \${SECRET} reference. A Mongo URI contains a password, which does not belong in a repository at any visibility.`
     );
   }
   if (target.type === 'supabase' && !isRef(target.apiKey)) {
     warnings.push(
-      `${where}: apiKey is a literal value. A Supabase anon key is designed to be public, but committing it to a public repo ` +
-        'makes rotation a code change and invites scraping. Move it to a GitHub secret and reference it as ${SECRET_NAME}.'
+      `${where}: apiKey is a literal value. A Supabase anon key is designed to be public, but committing it ` +
+        'makes rotation a code change, and in a public repo it will be scraped. Move it to a GitHub secret and reference it as ${SECRET_NAME}.'
     );
   }
   for (const [header, value] of Object.entries(target.headers ?? {})) {
     if (/^(authorization|x-api-key|apikey)$/i.test(header) && !isRef(value)) {
       errors.push(
-        `${where}: header "${header}" has a literal value. Credentials must be \${SECRET} references in a public repo.`
+        `${where}: header "${header}" has a literal value. Credentials must be \${SECRET} references, never committed.`
       );
     }
   }
