@@ -1,0 +1,6 @@
+# LF everywhere: these files are executed by Linux runners, and Prettier enforces LF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
