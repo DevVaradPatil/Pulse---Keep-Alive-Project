@@ -5,6 +5,21 @@ name: heartbeat-frequent
 # would be ~144 commits a day to the status branch. The daily run is what
 # records history, and it covers frequent-tier targets too.
 #
+# OFF BY DEFAULT, because it is the one expensive thing here: ~4,320 runs a
+# month, and GitHub rounds every job up to a minute, so ~4,320 billed minutes.
+# That is free on a public repository and more than double the 2,000-minute
+# budget of a private one on GitHub Free.
+#
+# The job-level `if:` below means the schedule fires but allocates no runner
+# unless you opt in, so it costs exactly zero until you do:
+#
+#   Settings -> Secrets and variables -> Actions -> Variables
+#   PULSE_TIER_FREQUENT = enabled
+#
+# Run `npm run estimate` first. On a private repo, leaving this off costs you
+# only that Render services cold-start on their first visit (~50 s); unlike
+# Supabase and Atlas, Render wakes by itself and needs no manual restore.
+#
 # Honest limitation, documented in the README as well: GitHub's scheduler is
 # best-effort and routinely runs 5-30 minutes late under load. A 10-minute cron
 # that drifts by 20 minutes will let a Render service spin down. Ten minutes
@@ -32,6 +47,9 @@ concurrency:
 
 jobs:
   heartbeat:
+    # A skipped job never allocates a runner, so this is free, not cheap.
+    # workflow_dispatch ignores the gate: a manual run is always allowed.
+    if: ${{ vars.PULSE_TIER_FREQUENT == 'enabled' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -48,6 +66,7 @@ jobs:
       - name: Run the frequent-tier checks
         env:
           PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}
+          PULSE_TARGETS_JSON: ${{ secrets.PULSE_TARGETS_JSON }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |

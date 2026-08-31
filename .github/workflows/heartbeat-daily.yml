@@ -59,6 +59,9 @@ jobs:
           # a project a one-file change: a new ${SECRET} in targets.json needs no
           # workflow edit. See src/config/load.js resolveEnv() for the trade-off.
           PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}
+          # Optional. Set only if you keep the target list out of the repo
+          # entirely; unset, the committed config/targets.json is used.
+          PULSE_TARGETS_JSON: ${{ secrets.PULSE_TARGETS_JSON }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |

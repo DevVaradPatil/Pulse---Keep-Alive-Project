@@ -47,6 +47,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Fails if the scheduled workflows would exceed a private repository's
+      # 2,000 free minutes. Catches an over-eager cron change in review rather
+      # than halfway through a month when Actions stops running.
+      - name: Scheduled Actions minutes fit the free budget
+        run: npm run estimate
+
       # Proves the whole path end to end without a single network request or a
       # single secret: parse, validate, resolve, plan.
       - name: Dry run against the real config
@@ -54,3 +60,11 @@ jobs:
 
       - name: Dry run against the test fixture
         run: node src/run.js --dry-run --skip-secrets --config test/fixtures/targets.fixture.json
+
+      # Proves the hidden-config path still parses and validates. It uses the
+      # fixture, never the real PULSE_TARGETS_JSON secret: validation runs on
+      # pull requests, and a pull request must never be handed the target list.
+      - name: Dry run with the target list supplied as a secret
+        run: |
+          PULSE_TARGETS_JSON="$(cat test/fixtures/targets.fixture.json)" \
+            node src/run.js --dry-run --skip-secrets

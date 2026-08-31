@@ -7,6 +7,18 @@ name: deploy-dashboard
 #
 # The dashboard reads its data at run time from the status branch, so a new
 # heartbeat needs no redeploy. This only runs when the dashboard itself changes.
+#
+# OFF BY DEFAULT. GitHub Pages needs a PUBLIC repository on the Free plan, and
+# the page it publishes is public whatever the repository's visibility - it
+# fetches history.json from raw.githubusercontent.com, which also requires the
+# repo to be public. So publishing the dashboard means publishing your project
+# names, platforms and URLs. Opt in only if that is what you want:
+#
+#   Settings -> Secrets and variables -> Actions -> Variables
+#   PULSE_PUBLISH_DASHBOARD = true
+#
+# On a private repository, use the local dashboard instead - same page, same
+# data, nothing published:  npm run dashboard
 
 on:
   push:
@@ -27,6 +39,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ vars.PULSE_PUBLISH_DASHBOARD == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
