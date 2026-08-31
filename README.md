@@ -1,13 +1,13 @@
 # Pulse
 
-[![heartbeat-daily](https://github.com/<YOUR_GITHUB_USERNAME>/pulse/actions/workflows/heartbeat-daily.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/pulse/actions/workflows/heartbeat-daily.yml)
-[![validate](https://github.com/<YOUR_GITHUB_USERNAME>/pulse/actions/workflows/validate.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/pulse/actions/workflows/validate.yml)
+[![heartbeat-daily](https://github.com/devVaradPatil/pulse/actions/workflows/heartbeat-daily.yml/badge.svg)](https://github.com/devVaradPatil/pulse/actions/workflows/heartbeat-daily.yml)
+[![validate](https://github.com/devVaradPatil/pulse/actions/workflows/validate.yml/badge.svg)](https://github.com/devVaradPatil/pulse/actions/workflows/validate.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 **A self-hosted, zero-cost keep-alive and uptime monitor for free-tier side projects.**
 GitHub Actions runs the checks, a GitHub Pages site shows the results, and nothing else is involved.
 
-📊 **[Live dashboard](https://<YOUR_GITHUB_USERNAME>.github.io/pulse/)** · 🛠 **[SETUP.md](./SETUP.md)** — the checklist to make it yours
+📊 **[Live dashboard](https://devVaradPatil.github.io/pulse/)** · 🛠 **[SETUP.md](./SETUP.md)** — the checklist to make it yours
 
 ---
 

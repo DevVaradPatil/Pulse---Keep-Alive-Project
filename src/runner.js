@@ -20,7 +20,7 @@ import { trimErrorMessage } from './lib/errors.js';
  * @returns {string}
  */
 export function buildUserAgent(env = process.env) {
-  const repo = env.GITHUB_REPOSITORY ?? '<YOUR_GITHUB_USERNAME>/pulse';
+  const repo = env.GITHUB_REPOSITORY ?? 'devVaradPatil/pulse';
   return `Pulse/1.0 (+https://github.com/${repo}; free-tier keep-alive monitor)`;
 }
 

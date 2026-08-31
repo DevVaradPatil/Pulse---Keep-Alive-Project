@@ -10,11 +10,11 @@ is the only section you will ever reopen.
 
 ## 0. Fill in your repository slug
 
-A few files reference `<YOUR_GITHUB_USERNAME>/pulse` because it cannot be known ahead of time. Replace
+A few files reference `devVaradPatil/pulse` because it cannot be known ahead of time. Replace
 it once, from the repository root:
 
 ```bash
-grep -rl "<YOUR_GITHUB_USERNAME>" --exclude-dir=node_modules --exclude-dir=.git . | xargs sed -i "s|<YOUR_GITHUB_USERNAME>|your-github-username|g"
+grep -rl "devVaradPatil" --exclude-dir=node_modules --exclude-dir=.git . | xargs sed -i "s|devVaradPatil|your-github-username|g"
 ```
 
 On Windows, run that in Git Bash. Also open `LICENSE` and replace `<YOUR NAME>`.
