@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "lastRun": "2026-08-31T16:14:23.449Z",
+  "targets": {
+    "spotify-clone": {
+      "name": "spotify-clone",
+      "type": "supabase",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:18.039Z",
+          "ok": true,
+          "ms": 801,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "think-tank-india": {
+      "name": "think-tank-india",
+      "type": "supabase",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:17.654Z",
+          "ok": true,
+          "ms": 1135,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "resume-insights": {
+      "name": "resume-insights",
+      "type": "supabase",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:18.398Z",
+          "ok": true,
+          "ms": 1489,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "civic-pulse": {
+      "name": "civic-pulse",
+      "type": "supabase",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:17.541Z",
+          "ok": true,
+          "ms": 1053,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "snikrz-atlas-cluster": {
+      "name": "snikrz-atlas-cluster",
+      "type": "mongo",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:16.985Z",
+          "ok": false,
+          "ms": 0,
+          "a": 3,
+          "e": "The \"mongodb\" driver is not installed, but a target of type \"mongo\" is configured. (ERR_MODULE_NOT_FOUND: Cannot find package 'mongodb' imported from /home/runner/work/Pulse---Keep-Alive-Project/Pulse---Keep-Alive-Project/src/checks/mongo.…"
+        }
+      ],
+      "months": []
+    },
+    "varaddev": {
+      "name": "varaddev",
+      "type": "http",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:18.779Z",
+          "ok": true,
+          "ms": 368,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "frontend-toolbox": {
+      "name": "frontend-toolbox",
+      "type": "http",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:19.079Z",
+          "ok": true,
+          "ms": 394,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "varadverse": {
+      "name": "varadverse",
+      "type": "http",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:20.378Z",
+          "ok": true,
+          "ms": 337,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "varad-dev-island": {
+      "name": "varad-dev-island",
+      "type": "http",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:21.029Z",
+          "ok": true,
+          "ms": 375,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    },
+    "varadiitk": {
+      "name": "varadiitk",
+      "type": "http",
+      "tier": "daily",
+      "runs": [
+        {
+          "t": "2026-08-31T16:14:20.069Z",
+          "ok": true,
+          "ms": 344,
+          "a": 1,
+          "s": 200
+        }
+      ],
+      "months": []
+    }
+  }
+}
