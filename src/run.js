@@ -23,6 +23,12 @@ import { buildUserAgent, runChecks } from './runner.js';
 import { renderMarkdown, renderTable, summarise, writeStepSummary } from './report.js';
 import { notify } from './notify.js';
 import { ConfigError } from './lib/errors.js';
+import {
+  buildRedactor,
+  emitActionsMasks,
+  sensitiveValuesFor,
+  stripIdentifiers,
+} from './lib/mask.js';
 
 const USAGE = `
 Pulse — keep-alive and uptime checks for free-tier side projects.
@@ -108,10 +114,17 @@ export async function main(argv = process.argv.slice(2)) {
     throw error;
   }
 
-  for (const warning of config.warnings) console.warn(`warning: ${warning}`);
+  // Before anything is printed. When the config itself came from a secret, the
+  // target URLs are identifying data too, so they get masked alongside the keys.
+  const sensitive = sensitiveValuesFor(config.targets, env, {
+    includeIdentifiers: config.fromSecret,
+  });
+  emitActionsMasks(sensitive);
+  const redact = buildRedactor(sensitive);
+
+  for (const warning of config.warnings) console.warn(`warning: ${redact(warning)}`);
 
   const targets = selectTargets(config.targets, { tier: flags.tier, id: flags.target });
-  const redact = buildRedactor(config.targets, env);
 
   if (flags.target && targets.length === 0) {
     console.error(
@@ -134,7 +147,7 @@ export async function main(argv = process.argv.slice(2)) {
   };
 
   if (flags['dry-run']) {
-    printPlan(targets, defaults, redact);
+    printPlan(targets, defaults, redact, config.publishDetails);
     return 0;
   }
 
@@ -164,23 +177,34 @@ export async function main(argv = process.argv.slice(2)) {
   const durationMs = Date.now() - startedAt.getTime();
   const { total, ok, failed } = summarise(results);
 
+  // Everything below this line outlives the run: the step summary lands in the
+  // Actions log, `--out` feeds the committed history file, and notify posts
+  // GitHub issues. If the target list was hidden, its details stay hidden here.
+  const published = config.publishDetails ? results : stripIdentifiers(results);
+
   console.log(`\n${renderTable(results)}\n`);
   console.log(`${ok}/${total} healthy, ${failed} failing, in ${(durationMs / 1000).toFixed(1)}s`);
+  if (!config.publishDetails) {
+    console.log('privacy: publishDetails is off — history, issues and summary carry ids only.');
+  }
 
-  await writeStepSummary(renderMarkdown(results, { tier: flags.tier, startedAt, durationMs }));
+  await writeStepSummary(renderMarkdown(published, { tier: flags.tier, startedAt, durationMs }));
 
   if (flags.out) {
     await mkdir(dirname(flags.out), { recursive: true });
     await writeFile(
       flags.out,
-      `${JSON.stringify({ startedAt: startedAt.toISOString(), tier: flags.tier ?? null, results }, null, 2)}\n`,
+      `${JSON.stringify({ startedAt: startedAt.toISOString(), tier: flags.tier ?? null, results: published }, null, 2)}\n`,
       'utf8'
     );
     console.log(`Wrote ${flags.out}`);
   }
 
   if (flags.notify) {
-    const summary = await notify({ results, log: (line) => console.log(`notify: ${line}`) });
+    const summary = await notify({
+      results: published,
+      log: (line) => console.log(`notify: ${redact(line)}`),
+    });
     const counts = [
       summary.opened.length && `${summary.opened.length} opened`,
       summary.updated.length && `${summary.updated.length} updated`,
@@ -196,13 +220,17 @@ export async function main(argv = process.argv.slice(2)) {
  * @param {import('./types.js').Target[]} targets
  * @param {import('./types.js').RunDefaults} defaults
  * @param {(text: string) => string} redact
+ * @param {boolean} showNames Off when the target list came from a secret: in a
+ *   public repository this output is a public workflow log.
  */
-function printPlan(targets, defaults, redact) {
+function printPlan(targets, defaults, redact, showNames) {
   console.log(
     `Dry run: config is valid and ${targets.length} target${targets.length === 1 ? '' : 's'} resolved. No requests were sent.\n`
   );
   for (const target of targets) {
-    console.log(`  ${target.id}  [${target.type}/${target.tier}]  ${target.name}`);
+    console.log(
+      `  ${target.id}  [${target.type}/${target.tier}]${showNames ? `  ${target.name}` : ''}`
+    );
     console.log(`      ${redact(getCheck(target.type).describe(target))}`);
     console.log(
       `      timeout ${target.timeoutMs} ms · ${target.retries} retries · secrets: ${
@@ -213,29 +241,6 @@ function printPlan(targets, defaults, redact) {
   console.log(
     `\nRunner: concurrency ${defaults.concurrency}, jitter up to ${defaults.jitterMs} ms, backoff ${defaults.backoffBaseMs}–${defaults.backoffMaxMs} ms.`
   );
-}
-
-/**
- * Mask resolved secret values in anything we print, write to history, or send
- * to a GitHub issue. Actions masks secrets in its own logs, but the history
- * file and issue bodies are ours to keep clean — and locally nothing masks
- * anything at all.
- *
- * @param {import('./types.js').Target[]} targets
- * @param {Record<string, string | undefined>} [env]
- * @returns {(text: string) => string}
- */
-export function buildRedactor(targets, env = process.env) {
-  const values = new Set();
-  for (const target of targets) {
-    for (const name of target.requiredSecrets ?? []) {
-      const value = env[name];
-      // Very short values would mask ordinary words in error messages.
-      if (value && value.length >= 8) values.add(value);
-    }
-  }
-  const sorted = [...values].sort((a, b) => b.length - a.length);
-  return (text) => sorted.reduce((acc, value) => acc.split(value).join('***'), text);
 }
 
 // Only run when executed directly, so tests can import main() without it firing.

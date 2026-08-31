@@ -4,7 +4,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { renderMarkdown, renderTable, summarise, writeStepSummary } from '../src/report.js';
-import { buildRedactor } from '../src/run.js';
+import { buildRedactor, sensitiveValuesFor } from '../src/lib/mask.js';
 
 /** @type {import('../src/types.js').RunResult[]} */
 const results = [
@@ -103,11 +103,21 @@ test('writeStepSummary appends when GITHUB_STEP_SUMMARY is set, and no-ops when 
 });
 
 test('resolved secret values are masked everywhere they could be printed or committed', () => {
-  const redact = buildRedactor(/** @type {any} */ ([{ requiredSecrets: ['ANON_KEY', 'SHORT'] }]), {
-    ANON_KEY: 'super-secret-value',
-    SHORT: 'abc',
-  });
+  // The pairing the runner actually uses: collect from the resolved targets,
+  // then redact every string on its way to a log, a summary or the history.
+  const redact = buildRedactor(
+    sensitiveValuesFor(/** @type {any} */ ([{ requiredSecrets: ['ANON_KEY', 'SHORT'] }]), {
+      ANON_KEY: 'super-secret-value',
+      SHORT: 'abc',
+    })
+  );
 
   assert.equal(redact('apikey=super-secret-value failed'), 'apikey=*** failed');
   assert.equal(redact('the word abc is too short to mask'), 'the word abc is too short to mask');
+
+  const markdown = renderMarkdown([{ ...results[1], error: 'auth super-secret-value rejected' }], {
+    startedAt: new Date(),
+    durationMs: 1,
+  });
+  assert.doesNotMatch(redact(markdown), /super-secret-value/);
 });
