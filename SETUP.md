@@ -1,10 +1,96 @@
 # Pulse — setup
 
 Everything here is a placeholder. No URL, key, or project name of yours appears anywhere in this
-repository, and none should: **this repo must be public**, and everything in it is world-readable.
+repository, and none should.
 
 Work top to bottom once. After that, [§4 "Add a new project in 60 seconds"](#4-add-a-new-project-in-60-seconds)
 is the only section you will ever reopen.
+
+---
+
+## 00. Choose your mode
+
+**Read this first.** It is the only decision here that is hard to change later, and it is entirely
+about what you are willing to publish.
+
+Secrets are never committed in any mode — keys live in GitHub Secrets and the config holds only
+`${SECRET}` references. What differs is everything _around_ the keys: the URLs, project names,
+history, alert issues, and workflow logs.
+
+|                                           | **A — Private repo** _(recommended)_ | **B — Public repo** | **C — Public repo, hidden targets** |
+| ----------------------------------------- | ------------------------------------ | ------------------- | ----------------------------------- |
+| Who can see your URLs and project names   | Only you                             | Anyone              | Only you                            |
+| Who can see run history and alert issues  | Only you                             | Anyone              | Only you                            |
+| Who can read the workflow logs            | Only you                             | Anyone              | Only you (values are masked)        |
+| Actions minutes                           | 2,000/month free                     | Unlimited           | Unlimited                           |
+| Daily tier (Supabase, Atlas)              | ✅ ~34 min/month                     | ✅                  | ✅                                  |
+| Frequent tier (Render, 10-min)            | ❌ needs ~4,320 min/month            | ✅                  | ✅                                  |
+| Hosted dashboard on GitHub Pages          | ❌ not on the Free plan              | ✅                  | ⚠️ would republish the names        |
+| Local dashboard (`npm run dashboard`)     | ✅                                   | ✅                  | ✅                                  |
+| Edit targets in a diffable, reviewed file | ✅                                   | ✅                  | ❌ paste JSON into a secret         |
+| Recruiter can read the code               | ❌                                   | ✅                  | ✅                                  |
+
+### The arithmetic behind the frequent tier
+
+Every Actions job is billed **rounded up to the nearest minute**, so a schedule's cost is simply its
+number of runs. A 10-minute cron is ~4,320 runs/month, which is ~4,320 minutes — free on a public
+repo, and more than double a private repo's 2,000. No amount of making the check faster changes that.
+
+Check it yourself at any time:
+
+```bash
+npm run estimate
+```
+
+Out of the box that reports **~34 minutes/month**, because the frequent tier ships **gated off**. It
+fits a private repo's free budget about sixty times over.
+
+### What you actually lose by picking A
+
+Only this: **Render free services will cold-start** (~50 seconds) on their first visit instead of
+being kept warm. That is the whole cost — and it is much smaller than it sounds, because **Render
+wakes by itself**. Unlike Supabase (7-day pause, manual restore from the dashboard) and Atlas
+(30-day pause, manual resume), a spun-down Render service is not paused, just cold. Nothing breaks,
+nothing needs a manual restore, and the daily tier still protects the two platforms that genuinely
+need protecting.
+
+If you want the frequent tier anyway, mode B or C, or ping that one Render URL from any free external
+cron you already trust.
+
+### Setting up mode A (private)
+
+1. Settings → General → Danger Zone → **Change visibility → private**.
+2. Leave `PULSE_TIER_FREQUENT` unset. The frequent workflow's schedule still fires, but its job is
+   skipped, and **a skipped job allocates no runner and costs nothing**.
+3. Leave `PULSE_PUBLISH_DASHBOARD` unset. Skip the Pages steps in §1.
+4. View status with `npm run dashboard` — the same page, reading the same `history.json` from the
+   `status` branch, served on localhost and published nowhere.
+
+### Setting up mode C (public code, hidden targets)
+
+Use this if you want the repo readable as a portfolio piece but do not want to reveal what you run.
+
+1. Keep `config/targets.json` as the empty stub it ships as. Nothing identifying is ever committed.
+2. Put the entire config in one repository secret named **`PULSE_TARGETS_JSON`** — same JSON shape as
+   `config/targets.json`, validated identically at run time.
+3. Leave `PULSE_PUBLISH_DASHBOARD` unset. A published dashboard would republish exactly what you hid.
+
+Pulse then switches itself to a private posture automatically, because you asked for one:
+
+- `privacy.publishDetails` defaults to **false**, so the history file, alert issues and step
+  summaries carry only the target **id** — never the name, platform, public URL or notes. Failure
+  text is kept (`expected HTTP 200 but got 503`), because a red dashboard has to stay debuggable.
+- Every target URL and hostname is registered with `::add-mask::`, so the Actions log shows `***`
+  instead — even in output Pulse did not write itself.
+
+Set `"privacy": { "publishDetails": true }` in the config to override that if you want the names back.
+
+The honest cost of mode C: editing targets means pasting JSON into a textarea in the GitHub UI. No
+diff, no pull request, no editor autocomplete. Draft the file locally, check it, then paste:
+
+```bash
+node src/run.js --dry-run --config ./my-targets.json
+```
 
 ---
 
@@ -26,23 +112,35 @@ the README badge and links.
 
 ## 1. One-time setup checklist
 
-- [ ] **Create the repository and push this code.** Name it whatever you like; `pulse` is assumed
+Steps marked **(B/C)** are only for the public modes. On a private repo, skip them.
+
+- [x] **Create the repository and push this code.** Name it whatever you like; `pulse` is assumed
       throughout.
-- [ ] **Make it public.** Settings → General → Danger Zone → Change visibility.
-      This is not cosmetic: **public repositories get unlimited GitHub Actions minutes**, while a
-      private repository on the Free plan is capped at 2,000 minutes/month. The frequent tier alone
-      (a run every 10 minutes, ~1 minute each) is roughly 4,300 minutes/month and would blow that cap
-      in the first week. It is also why no secret may ever be committed — see §3.
+- [ ] **Set the visibility you chose in §00.** Settings → General → Danger Zone → Change visibility.
+      Private is the default recommendation; everything except the frequent tier and the hosted
+      dashboard works identically.
 - [ ] **Enable read/write workflow permissions.** Settings → Actions → General → Workflow permissions
       → **Read and write permissions**. Without this the daily run cannot push history and cannot open
-      alert issues.
-- [ ] **Enable GitHub Pages.** Settings → Pages → Source → **GitHub Actions**.
-      Do not pick "Deploy from a branch".
-- [ ] **Run `deploy-dashboard` once.** Actions → deploy-dashboard → Run workflow. Your dashboard is
-      then at `https://<your-github-username>.github.io/pulse/`.
+      alert issues. Required in every mode.
+- [ ] **Check the budget.** `npm run estimate` — it must fit whichever plan you are on. CI runs this
+      too, so an over-eager cron change fails in review rather than mid-month.
+- [ ] **(B/C) Enable GitHub Pages.** Settings → Pages → Source → **GitHub Actions**.
+      Do not pick "Deploy from a branch". Pages needs a public repo on the Free plan.
+- [ ] **(B) Turn the dashboard on.** Settings → Secrets and variables → Actions → **Variables** →
+      `PULSE_PUBLISH_DASHBOARD` = `true`, then Actions → deploy-dashboard → Run workflow. It lands at
+      `https://<your-github-username>.github.io/pulse/`. Leave this unset in modes A and C.
+- [ ] **(B/C, optional) Turn the frequent tier on.** Variables → `PULSE_TIER_FREQUENT` = `enabled`.
+      Only after `npm run estimate` says you can afford it. Never on a private free repo.
 - [ ] **The `status` branch.** Nothing to do — the first daily run creates it as an orphan branch if
       it does not exist.
-- [ ] **Check the Actions tab shows the four workflows** and that none say "This workflow was disabled".
+- [ ] **Check the Actions tab shows the five workflows** and that none say "This workflow was
+      disabled".
+
+Viewing your status:
+
+```bash
+npm run dashboard          # every mode: local, private, nothing published
+```
 
 Local development, entirely optional:
 
@@ -94,30 +192,77 @@ Add them at **Settings → Secrets and variables → Actions → New repository 
 value only — no quotes, no `export`, no trailing newline.
 
 Then reference it in `config/targets.json` as `${EXAMPLE_NOTES_SUPABASE_ANON_KEY}` and list it in
-that target's `requiredSecrets`. You do **not** need to touch any workflow file: the workflows pass
-every repository secret to the pinger as one JSON blob, which is what keeps adding a project to a
-single-file change.
+that target's `requiredSecrets`. You do **not** need to touch any workflow file: the heartbeat
+workflows pass every repository secret to the pinger as one JSON blob (`PULSE_SECRETS_JSON:
+${{ toJSON(secrets) }}`), which is what keeps adding a project to a single-file change.
 
-### What is safe to put in the public config file, and what is not
+**The trade-off in that line, stated plainly:** the pinger process can read every repository secret,
+not only the ones its targets use. It is the same code, from your own default branch, that would have
+read them from individual `env:` entries anyway, and Actions never hands secrets to a pull request
+from a fork — but if you keep unrelated high-value secrets in this repo, that is a reason not to.
+To opt out, delete the `PULSE_SECRETS_JSON` line from both heartbeat workflows and list what you
+need explicitly instead:
 
-| Value                                   | In `targets.json`? | Why                                                                                                                                           |
-| --------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site URLs, health endpoint URLs  | ✅ Yes             | Already public. That is what a URL is.                                                                                                        |
-| `https://<ref>.supabase.co`             | ✅ Yes             | Public by design; it is in your frontend bundle.                                                                                              |
-| Supabase **anon** key                   | ⚠️ Use a secret    | Designed to be public and safe under RLS, but committing it makes rotation a code change and invites scraping. Pulse warns if you inline one. |
-| Supabase **service_role** key           | ❌ **Never**       | Bypasses RLS entirely. Full read/write on your database. Pulse never needs it.                                                                |
-| Mongo connection string                 | ❌ **Never**       | Contains a password. Validation **fails the build** if this is not a `${SECRET}` reference.                                                   |
-| Any `Authorization` / `x-api-key` value | ❌ **Never**       | Validation fails the build on a literal value in those headers.                                                                               |
-| Database passwords, JWT signing secrets | ❌ **Never**       | Pulse has no use for them.                                                                                                                    |
+```yaml
+env:
+  EXAMPLE_NOTES_SUPABASE_ANON_KEY: ${{ secrets.EXAMPLE_NOTES_SUPABASE_ANON_KEY }}
+```
 
-If you ever paste a secret into a committed file: rotate it. Deleting the commit is not enough —
-public repository content is scraped and archived within minutes.
+You then have to add a line there for each new project, which is the cost of the least-privilege
+version. Validation still catches a reference you forgot to wire up.
 
-### Optional secrets
+### What may go in the config file, and what must never
 
-| Secret        | Effect                                                                        |
-| ------------- | ----------------------------------------------------------------------------- |
-| `WEBHOOK_URL` | Discord or Slack incoming webhook. Posts failures. Silently skipped if unset. |
+The last two columns are the whole point of §00: what is safe depends on who can read the repo.
+
+| Value                                   | Private repo (A) | Public repo (B/C) | Why                                                                                                            |
+| --------------------------------------- | ---------------- | ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| Public site URLs, health endpoint URLs  | ✅ Yes           | ⚠️ Your call      | Not a secret, but it is a public inventory of what you run and where. Mode C hides it; mode B publishes it.    |
+| Project names, platform labels, notes   | ✅ Yes           | ⚠️ Your call      | Same. Harmless to you, or an unwanted map of your side projects — only you can decide.                         |
+| `https://<ref>.supabase.co`             | ✅ Yes           | ⚠️ Your call      | Public by design; already in your frontend bundle. Still identifying.                                          |
+| Supabase **anon** key                   | ⚠️ Use a secret  | ⚠️ Use a secret   | Safe under RLS, but inlining makes rotation a code change and invites scraping. Pulse warns if you inline one. |
+| Supabase **service_role** key           | ❌ **Never**     | ❌ **Never**      | Bypasses RLS entirely. Full read/write on your database. Pulse never needs it.                                 |
+| Mongo connection string                 | ❌ **Never**     | ❌ **Never**      | Contains a password. Validation **fails the build** if this is not a `${SECRET}` reference.                    |
+| Any `Authorization` / `x-api-key` value | ❌ **Never**     | ❌ **Never**      | Validation fails the build on a literal value in those headers.                                                |
+| Database passwords, JWT signing secrets | ❌ **Never**     | ❌ **Never**      | Pulse has no use for them.                                                                                     |
+
+The four ❌ rows never change with visibility. A private repo is not a safe place for a password
+either: every collaborator can read it, so can anyone who gets a token, and a repo that starts
+private can be made public by one click years later.
+
+If you ever paste a secret into a committed file: **rotate it**. Deleting the commit is not enough —
+public repository content is scraped and archived within minutes, and a private repo's history keeps
+the value for anyone who later gains access.
+
+### What leaks where, in each mode
+
+Worth knowing precisely, because "the repo has no secrets in it" is not the same as "nothing is
+exposed":
+
+| Surface                     | What it contains                        | Private (A) | Public (B) | Public + hidden (C)       |
+| --------------------------- | --------------------------------------- | ----------- | ---------- | ------------------------- |
+| `config/targets.json`       | URLs, names, platforms                  | Private     | Public     | Empty — lives in a secret |
+| `status` branch history     | Names, URLs, response times, error text | Private     | Public     | Ids and error text only   |
+| Alert issues                | Name, URL, platform, error              | Private     | Public     | Id and error only         |
+| Actions logs & step summary | Whatever the run printed                | Private     | Public     | URLs and hosts masked     |
+| GitHub Pages dashboard      | Everything on the cards                 | Unavailable | Public     | Keep it off               |
+
+### Optional secrets and variables
+
+| Secret               | Effect                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `WEBHOOK_URL`        | Discord or Slack incoming webhook. Posts failures. Silently skipped if unset.                    |
+| `PULSE_TARGETS_JSON` | Mode C only. The whole target list, keeping it out of the repo. Overrides `config/targets.json`. |
+
+Repository **variables** (Settings → Secrets and variables → Actions → **Variables**, not Secrets):
+
+| Variable                  | Set it to | Effect                                                                                   |
+| ------------------------- | --------- | ---------------------------------------------------------------------------------------- |
+| `PULSE_TIER_FREQUENT`     | `enabled` | Turns on the 10-minute tier. ~4,320 minutes/month — public repos only.                   |
+| `PULSE_PUBLISH_DASHBOARD` | `true`    | Turns on the GitHub Pages deploy. Public repos only, and it publishes your project list. |
+
+Both are unset by default, and both workflows are **skipped entirely** while they are — a skipped job
+allocates no runner, so an unused schedule costs nothing at all.
 
 `GITHUB_TOKEN` is provided automatically by Actions. Do not create one.
 

@@ -7,7 +7,11 @@
 **A self-hosted, zero-cost keep-alive and uptime monitor for free-tier side projects.**
 GitHub Actions runs the checks, a GitHub Pages site shows the results, and nothing else is involved.
 
-📊 **[Live dashboard](https://devVaradPatil.github.io/pulse/)** · 🛠 **[SETUP.md](./SETUP.md)** — the checklist to make it yours
+🛠 **[SETUP.md](./SETUP.md)** — the checklist to make it yours · 🔒 **[Choose your mode](./SETUP.md#00-choose-your-mode)** — private or public, decide first
+
+> **Runs private by default.** Nothing about your projects — URLs, names, history, alerts — has to
+> leave the repository, and the expensive schedule ships switched off so a private repo costs about
+> **34 of its 2,000 free Actions minutes a month**. Run `npm run estimate` to see it.
 
 ---
 
@@ -50,9 +54,9 @@ an id, or references a secret it did not declare. Full walkthrough:
 
 ```mermaid
 flowchart TD
-    subgraph cron["GitHub Actions (free, unlimited on public repos)"]
+    subgraph cron["GitHub Actions — ~34 min/month as shipped"]
         D["heartbeat-daily<br/>21:17 UTC · 02:47 IST"]
-        F["heartbeat-frequent<br/>every ~10 min"]
+        F["heartbeat-frequent<br/>every ~10 min<br/><i>off unless enabled</i>"]
         K["keepalive<br/>weekly"]
     end
 
@@ -72,7 +76,7 @@ flowchart TD
 
     RES -->|"daily only"| HIST["status/history.json<br/>on the <code>status</code> branch<br/>90d detail → monthly rollups"]
     RES -->|"on failure"| AL["GitHub Issue (deduped)<br/>+ optional webhook<br/>+ failing job → email"]
-    HIST --> DASH["GitHub Pages dashboard<br/>fetches history.json at runtime"]
+    HIST --> DASH["dashboard<br/>local by default (npm run dashboard)<br/>GitHub Pages if you opt in"]
 
     K -->|"if last commit > 45 days"| COMMIT["timestamp commit<br/><i>keeps the crons enabled</i>"]
 ```
@@ -95,6 +99,14 @@ flowchart TD
 - **Secrets never appear in the repo.** Any string may contain `${SECRET_NAME}`, resolved from the
   environment at run time. A missing one fails loudly, by name, before any request — it never pings
   with the literal `${...}`. Resolved values are masked in logs, history, and issue bodies.
+- **Privacy is a setting, not a fork.** The same code runs a private repo, a public one, or a public
+  repo whose target list lives entirely in one secret. In that last mode Pulse switches itself to a
+  private posture: URLs and hostnames are registered with `::add-mask::` so the Actions log shows
+  `***`, and the history, issues and step summaries carry ids instead of names.
+- **The expensive thing is off by default.** The 10-minute tier and the Pages deploy are each gated
+  behind a repository variable, and a skipped job allocates no runner — so they cost nothing at all
+  until you opt in. `npm run estimate` prints the monthly bill and fails CI if a cron change would
+  exceed the free budget.
 - **JSDoc + `checkJs`, not TypeScript.** Type-checked in CI via `tsc --noEmit`, with no build step
   between the source and what the workflow runs. That property is what keeps this reliable.
 
@@ -128,13 +140,32 @@ Two deviations from a flatter layout, both deliberate: `src/config/` and `src/to
 ## Commands
 
 ```bash
+npm run dashboard     # the dashboard, locally, reading the status branch — nothing published
+npm run estimate      # monthly Actions minutes vs your plan's budget
 npm run validate      # validate config/targets.json — no network, no secrets needed
 npm run dry-run       # resolve and print the plan without sending a request
 npm test              # unit tests (node:test, fetch is mocked)
-npm run verify        # lint + format + typecheck + test + validate
+npm run verify        # lint + format + typecheck + test + validate + estimate
 node src/run.js --target your-slug       # re-check one project
 node src/run.js --tier frequent          # what the frequent workflow runs
 ```
+
+## Privacy
+
+Nothing about your projects has to leave the repository, and the defaults assume you would rather it
+did not. [SETUP.md §00](./SETUP.md#00-choose-your-mode) has the full comparison; the short version:
+
+- **Keys are never committed, in any mode.** The config holds `${SECRET}` references and validation
+  fails the build on a literal Mongo URI or `Authorization` header.
+- **A private repo needs no compromises.** Everything works except the 10-minute frequent tier
+  (~4,320 minutes/month against a 2,000 free budget) and the hosted dashboard (GitHub Pages needs a
+  public repo on the Free plan). Use `npm run dashboard` instead — same page, served on localhost.
+  What you give up is that Render services cold-start on first visit; unlike Supabase and Atlas,
+  Render wakes by itself and needs no manual restore, so nothing breaks.
+- **A public repo can still hide what it monitors.** Put the whole target list in a
+  `PULSE_TARGETS_JSON` secret and the repo contains only code. Pulse then masks every target URL and
+  hostname in the Actions log and publishes ids rather than names to the history and to alert issues.
+  The cost is honest: editing targets means pasting JSON into the GitHub UI, so no diff and no review.
 
 ## The GitHub cron trap
 
@@ -159,6 +190,9 @@ keepalive commit on the default branch is the one that reliably resets the timer
   irrelevant against Render's 15 minutes** — which is why the frequent tier targets 10 minutes rather
   than 14, and why it is still best-effort rather than a guarantee. A 10-minute cron that drifts by
   20 minutes will let a Render service spin down.
+- **Which is a second reason not to bother with the frequent tier.** It is the one part of this
+  system that is both expensive and unreliable. The daily tier — the part that actually prevents the
+  two pauses that need a manual restore — is neither.
 
 ## This is a workaround
 
