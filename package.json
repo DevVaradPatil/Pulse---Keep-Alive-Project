@@ -1,0 +1,35 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hosted, zero-cost keep-alive and uptime monitoring for free-tier side projects.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "check": "node src/run.js",
+    "check:daily": "node src/run.js --tier daily",
+    "check:frequent": "node src/run.js --tier frequent",
+    "dry-run": "node src/run.js --dry-run --skip-secrets",
+    "validate": "node src/tools/validate-config.js",
+    "drivers": "node src/tools/ensure-drivers.js",
+    "test": "node --test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "verify": "npm run lint && npm run format && npm run typecheck && npm test && npm run validate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "^22.20.1",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

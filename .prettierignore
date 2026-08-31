@@ -1,0 +1,5 @@
+node_modules
+package-lock.json
+.pulse
+status-data
+CHANGELOG.md
