@@ -1,0 +1,56 @@
+{
+  "$schema": "../../config/targets.schema.json",
+  "defaults": {
+    "timeoutMs": 15000,
+    "retries": 1,
+    "concurrency": 3,
+    "jitterMs": 0
+  },
+  "targets": [
+    {
+      "id": "fixture-supabase",
+      "name": "Fixture Supabase Project",
+      "type": "supabase",
+      "tier": "daily",
+      "platform": "vercel+supabase",
+      "publicUrl": "https://fixture.example",
+      "supabaseUrl": "https://fixtureref.supabase.co",
+      "apiKey": "${FIXTURE_SUPABASE_ANON_KEY}",
+      "table": "heartbeat",
+      "requiredSecrets": ["FIXTURE_SUPABASE_ANON_KEY"],
+      "notes": "Static frontend, so the check talks to PostgREST directly."
+    },
+    {
+      "id": "fixture-render",
+      "name": "Fixture Render Service",
+      "type": "http",
+      "tier": "frequent",
+      "platform": "render+postgres",
+      "url": "https://fixture-api.example/api/health",
+      "publicUrl": "https://fixture-api.example",
+      "expectStatus": 200,
+      "expectBodyContains": "\"ok\":true",
+      "timeoutMs": 30000,
+      "notes": "Render free service; 15-minute spin-down."
+    },
+    {
+      "id": "fixture-mongo",
+      "name": "Fixture Atlas Cluster",
+      "type": "mongo",
+      "tier": "daily",
+      "platform": "atlas-m0",
+      "connectionString": "${FIXTURE_MONGO_URI}",
+      "dbName": "admin",
+      "requiredSecrets": ["FIXTURE_MONGO_URI"]
+    },
+    {
+      "id": "fixture-parked",
+      "name": "Fixture Parked Project",
+      "type": "http",
+      "tier": "daily",
+      "enabled": false,
+      "url": "https://parked.example/api/health",
+      "expectBodyContains": "ok"
+    }
+  ]
+}
