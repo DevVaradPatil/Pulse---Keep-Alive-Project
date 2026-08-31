@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pulse — status</title>
+    <meta
+      name="description"
+      content="Uptime and keep-alive status for self-hosted side projects."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%232e9e6b'/%3E%3C/svg%3E"
+    />
+    <script src="./config.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#targets">Skip to targets</a>
+
+    <header class="masthead">
+      <div class="masthead__inner">
+        <div class="masthead__identity">
+          <h1 class="masthead__title">Pulse</h1>
+          <p class="masthead__subtitle">
+            Keep-alive and uptime monitoring for free-tier side projects.
+          </p>
+        </div>
+
+        <button
+          class="theme-toggle"
+          type="button"
+          id="theme-toggle"
+          aria-pressed="false"
+          title="Switch between light and dark"
+        >
+          <span class="theme-toggle__label">Theme</span>
+        </button>
+      </div>
+
+      <dl class="stats" id="stats" aria-label="Overall status">
+        <div class="stat">
+          <dt class="stat__label">Targets</dt>
+          <dd class="stat__value" id="stat-total">—</dd>
+        </div>
+        <div class="stat stat--up">
+          <dt class="stat__label">Healthy</dt>
+          <dd class="stat__value" id="stat-healthy">—</dd>
+        </div>
+        <div class="stat stat--down">
+          <dt class="stat__label">Failing</dt>
+          <dd class="stat__value" id="stat-failing">—</dd>
+        </div>
+        <div class="stat">
+          <dt class="stat__label">Last run</dt>
+          <dd class="stat__value stat__value--time" id="stat-lastrun">—</dd>
+        </div>
+      </dl>
+    </header>
+
+    <main>
+      <section class="controls" aria-label="Filter targets">
+        <div class="field">
+          <label class="field__label" for="search">Search</label>
+          <input
+            class="field__input"
+            type="search"
+            id="search"
+            name="search"
+            placeholder="Name, platform or id"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="field field--inline">
+          <input class="switch" type="checkbox" id="only-failing" />
+          <label class="field__label field__label--inline" for="only-failing"
+            >Show only failing</label
+          >
+        </div>
+
+        <p class="controls__count" id="result-count" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="targets" aria-label="Monitored targets" tabindex="-1">
+        <p class="loading" id="loading">Loading status data…</p>
+        <ul class="grid" id="grid" hidden></ul>
+
+        <div class="notice" id="notice" hidden>
+          <h2 class="notice__title" id="notice-title"></h2>
+          <p class="notice__body" id="notice-body"></p>
+          <pre class="notice__detail" id="notice-detail" hidden></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <p>
+        Data is read live from <code id="source-url">the status branch</code>. History keeps 90 days
+        of per-run detail, then monthly aggregates.
+      </p>
+      <p class="colophon__muted">
+        Times are shown in your local timezone. Monthly p95 values are approximate once a month has
+        been rolled up more than once.
+      </p>
+    </footer>
+
+    <template id="card-template">
+      <li class="card">
+        <article aria-labelledby="">
+          <header class="card__header">
+            <div class="card__heading">
+              <h2 class="card__title"></h2>
+              <p class="card__platform"></p>
+            </div>
+            <p class="badge">
+              <span class="badge__dot" aria-hidden="true"></span>
+              <span class="badge__text"></span>
+            </p>
+          </header>
+
+          <dl class="card__meta">
+            <div class="card__metaitem">
+              <dt>Last checked</dt>
+              <dd class="card__checked"><time></time></dd>
+            </div>
+            <div class="card__metaitem">
+              <dt>Response</dt>
+              <dd class="card__response"></dd>
+            </div>
+            <div class="card__metaitem">
+              <dt>90-day uptime</dt>
+              <dd class="card__uptime"></dd>
+            </div>
+          </dl>
+
+          <div class="card__strip" role="img"></div>
+
+          <div class="card__spark"></div>
+
+          <p class="card__error" hidden></p>
+          <p class="card__notes" hidden></p>
+
+          <p class="card__links"><a class="card__link" href="#" rel="noopener noreferrer"></a></p>
+        </article>
+      </li>
+    </template>
+  </body>
+</html>
