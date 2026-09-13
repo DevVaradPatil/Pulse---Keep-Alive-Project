@@ -88,4 +88,6 @@ grant execute on function public.pulse_heartbeat() to anon;
 
 -- Test it in the SQL editor:  select public.pulse_heartbeat();
 -- Then use an "http" target that POSTs to /rest/v1/rpc/pulse_heartbeat
+-- with "expectBodyContains": "noted_at". Not "ok":true - Postgres prints
+-- json_build_object as {"ok" : true}, with spaces, so that string never matches.
 -- (see SETUP.md / config/targets.template.json).
