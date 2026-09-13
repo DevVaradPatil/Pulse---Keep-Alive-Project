@@ -57,3 +57,35 @@ alter table public.heartbeat enable row level security;
 --   "table": "heartbeat",
 --   "requiredSecrets": ["YOUR_SLUG_SUPABASE_ANON_KEY"]
 -- }
+
+-- ---------------------------------------------------------------------------
+-- STRONGER VARIANT: a daily WRITE, for a project that still gets
+-- "about to be paused" emails while the read-only check above passes.
+--
+-- A read that returns [] under RLS evidently does not always count as enough
+-- activity. This function upserts ONE row (id 1), so every ping is a real
+-- write, and the table never grows. SECURITY DEFINER lets the anon role call
+-- it without any RLS policy that would let anon insert arbitrary rows.
+
+create or replace function public.pulse_heartbeat()
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.heartbeat (id, noted_at, note)
+  overriding system value
+  values (1, now(), 'pulse keep-alive')
+  on conflict (id) do update set noted_at = excluded.noted_at;
+
+  return json_build_object('ok', true, 'noted_at', now());
+end;
+$$;
+
+revoke all on function public.pulse_heartbeat() from public;
+grant execute on function public.pulse_heartbeat() to anon;
+
+-- Test it in the SQL editor:  select public.pulse_heartbeat();
+-- Then use an "http" target that POSTs to /rest/v1/rpc/pulse_heartbeat
+-- (see SETUP.md / config/targets.template.json).
