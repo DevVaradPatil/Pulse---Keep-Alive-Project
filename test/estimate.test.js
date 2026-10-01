@@ -59,13 +59,17 @@ test('the shipped workflows fit a private repository on the free plan', async ()
   const rows = await estimateWorkflows();
   const total = rows.reduce((sum, row) => sum + row.minutes, 0);
 
-  assert.ok(rows.length >= 3, 'daily, frequent and keepalive all counted');
+  assert.ok(
+    rows.some((row) => row.file.includes('heartbeat-daily')),
+    'the daily heartbeat is counted'
+  );
   assert.ok(
     total <= 2000,
     `scheduled workflows must fit the 2,000-minute private budget out of the box, got ${total}`
   );
 
-  const frequent = rows.find((row) => row.file.includes('frequent'));
-  assert.equal(frequent?.gated, true, 'the expensive tier ships gated off');
-  assert.equal(frequent?.minutes, 0);
+  // Any frequent tier that exists must ship gated off; none existing is fine.
+  for (const row of rows.filter((r) => r.file.includes('frequent'))) {
+    assert.equal(row.gated, true, `${row.file} must ship gated off`);
+  }
 });

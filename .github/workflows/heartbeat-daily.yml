@@ -4,15 +4,18 @@ name: heartbeat-daily
 # status/history.json on the `status` branch, and alerts on failure.
 #
 # Timing notes:
-#  - Cron is UTC. 21:17 UTC is 02:47 IST.
-#  - :00 is by far the most congested minute on GitHub's scheduler, so this
-#    deliberately avoids it. Scheduled runs are best-effort and are routinely
-#    delayed 5-30 minutes under load, which is irrelevant against a 7-day
-#    (Supabase) or 30-day (Atlas) inactivity window.
+#  - Four runs a day, not one. Supabase pauses a free project without
+#    "sufficient user database activity", which its docs describe as "a few
+#    user requests to the database each day". One ping a day passed every
+#    check here yet still drew the about-to-be-paused email.
+#  - Cron is UTC. 03:17 / 09:17 / 15:17 / 21:17 UTC = 08:47 / 14:47 / 20:47 /
+#    02:47 IST. Avoids :00, the most congested minute on GitHub's scheduler.
+#  - Cost: ~120 runs a month. Free on a public repo, ~6% of a private one's
+#    2,000 minutes (`npm run estimate`).
 
 on:
   schedule:
-    - cron: '17 21 * * *'
+    - cron: '17 3,9,15,21 * * *'
   workflow_dispatch:
     inputs:
       target:
