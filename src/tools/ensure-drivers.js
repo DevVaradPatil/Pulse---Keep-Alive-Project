@@ -21,7 +21,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
-import { readConfigSource, resolveEnv } from '../config/load.js';
+import { readConfigSource } from '../config/load.js';
 
 /** Check type → npm package. A new type needing a driver adds one line here. */
 const DRIVERS = Object.freeze({
@@ -35,7 +35,7 @@ const { values } = parseArgs({
   },
 });
 
-const { raw, label } = await readConfigSource({ configPath: values.config, env: resolveEnv() });
+const { raw, label } = await readConfigSource({ configPath: values.config, env: process.env });
 const config = /** @type {{ targets?: Array<Record<string, any>> }} */ (raw);
 console.log(`Checking driver needs against ${label}`);
 

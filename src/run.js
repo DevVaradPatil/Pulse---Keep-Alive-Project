@@ -17,7 +17,7 @@ import { parseArgs } from 'node:util';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadConfig, resolveEnv, selectTargets } from './config/load.js';
+import { loadConfig, selectTargets } from './config/load.js';
 import { getCheck } from './checks/index.js';
 import { buildUserAgent, runChecks } from './runner.js';
 import { renderMarkdown, renderTable, summarise, writeStepSummary } from './report.js';
@@ -95,8 +95,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   const startedAt = new Date();
-  // Resolved once so the loader and the redactor see exactly the same secrets.
-  const env = resolveEnv();
+  const env = process.env;
 
   /** @type {import('./config/load.js').LoadedConfig} */
   let config;

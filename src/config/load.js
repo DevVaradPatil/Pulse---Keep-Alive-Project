@@ -37,47 +37,6 @@ export const BUILT_IN_DEFAULTS = Object.freeze({
 });
 
 /**
- * Merge GitHub Actions secrets injected as a single JSON blob into the ambient
- * environment.
- *
- * The workflows set `PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}`. Without this,
- * every new project with a secret would need a matching line in an `env:` block
- * in two workflow files — which would break the one-file-one-entry rule that
- * the whole design exists to protect.
- *
- * The trade-off, stated plainly: the pinger process can see every repository
- * secret, not only the ones it uses. Since the process runs code from this
- * repository's default branch and Actions never exposes secrets to pull
- * requests from forks, the exposure is the same code that would have read them
- * from individual `env:` entries anyway. If you would rather not, delete the
- * `PULSE_SECRETS_JSON` line from the workflows and list secrets explicitly.
- *
- * @param {Record<string, string | undefined>} [processEnv]
- * @returns {Record<string, string | undefined>}
- */
-export function resolveEnv(processEnv = process.env) {
-  const injected = processEnv.PULSE_SECRETS_JSON;
-  if (!injected) return processEnv;
-
-  /** @type {Record<string, unknown>} */
-  let parsed;
-  try {
-    parsed = JSON.parse(injected);
-  } catch (error) {
-    throw new ConfigError('PULSE_SECRETS_JSON is set but is not valid JSON.', {
-      cause: error,
-      hint: 'It should be `${{ toJSON(secrets) }}` in the workflow. Nothing else should ever set it.',
-    });
-  }
-
-  const merged = { ...processEnv };
-  for (const [name, value] of Object.entries(parsed)) {
-    if (typeof value === 'string' && value !== '') merged[name] = value;
-  }
-  return merged;
-}
-
-/**
  * Decide where the target list comes from.
  *
  * Precedence, most explicit first:
@@ -150,7 +109,7 @@ export async function loadConfig(options = {}) {
   const {
     configPath,
     schemaPath = DEFAULT_SCHEMA_PATH,
-    env = resolveEnv(),
+    env = process.env,
     allowMissingSecrets = false,
   } = options;
 

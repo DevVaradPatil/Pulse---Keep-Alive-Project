@@ -63,10 +63,16 @@ jobs:
         id: checks
         continue-on-error: true # so history is still recorded for a failing run
         env:
-          # Every repository secret, as one JSON blob. This is what makes adding
-          # a project a one-file change: a new ${SECRET} in targets.json needs no
-          # workflow edit. See src/config/load.js resolveEnv() for the trade-off.
-          PULSE_SECRETS_JSON: ${{ toJSON(secrets) }}
+          # One line per secret your targets reference. Never replace these with
+          # a dump of the whole secrets context (toJSON on it): that is the exact
+          # pattern secret-stealing malware uses, so GitHub holds the workflow as
+          # "potentially malicious" and no run executes until a human approves
+          # each one. That silently stopped every ping from 1 to 25 Oct 2026.
+          SPOTIFY_SUPABASE_ANON_KEY: ${{ secrets.SPOTIFY_SUPABASE_ANON_KEY }}
+          THINK_TANK_INDIA_SUPABASE_ANON_KEY: ${{ secrets.THINK_TANK_INDIA_SUPABASE_ANON_KEY }}
+          RESUME_INSIGHTS_SUPABASE_ANON_KEY: ${{ secrets.RESUME_INSIGHTS_SUPABASE_ANON_KEY }}
+          CIVIC_PULSE_SUPABASE_ANON_KEY: ${{ secrets.CIVIC_PULSE_SUPABASE_ANON_KEY }}
+          SNIKRZ_ATLAS_CLUSTER_MONGO_URI: ${{ secrets.SNIKRZ_ATLAS_CLUSTER_MONGO_URI }}
           # Optional. Set only if you keep the target list out of the repo
           # entirely; unset, the committed config/targets.json is used.
           PULSE_TARGETS_JSON: ${{ secrets.PULSE_TARGETS_JSON }}

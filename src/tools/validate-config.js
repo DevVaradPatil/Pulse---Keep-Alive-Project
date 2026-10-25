@@ -17,7 +17,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { DEFAULT_SCHEMA_PATH, readConfigSource, resolveEnv } from '../config/load.js';
+import { DEFAULT_SCHEMA_PATH, readConfigSource } from '../config/load.js';
 import { validateConfig } from '../config/validate.js';
 import { ConfigError } from '../lib/errors.js';
 
@@ -43,7 +43,7 @@ try {
     raw: config,
     label,
     fromSecret,
-  } = await readConfigSource({ configPath: values.config, env: resolveEnv() }));
+  } = await readConfigSource({ configPath: values.config, env: process.env }));
   schema = JSON.parse(await readFile(/** @type {string} */ (values.schema), 'utf8'));
 } catch (error) {
   console.error(

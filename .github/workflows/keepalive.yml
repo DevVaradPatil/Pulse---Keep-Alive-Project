@@ -8,12 +8,16 @@ name: keepalive
 # that quietly dies after two months is worse than none at all, because you will
 # believe you are covered while your projects are being paused one by one.
 #
-# So: once a week, look at how old the last commit on the default branch is. If
+# So: once a day, look at how old the last commit on the default branch is. If
 # it is over 45 days (15 days of margin), make a trivial timestamp commit.
+#
+# It also fails - which emails you - if heartbeat-daily has not SUCCEEDED in
+# 36 hours. A held, disabled or broken heartbeat otherwise looks like silence,
+# and silence is exactly how every ping stopped for 25 days in October 2026.
 
 on:
   schedule:
-    - cron: '43 4 * * 1' # Mondays, 04:43 UTC = 10:13 IST
+    - cron: '43 4 * * *' # daily, 04:43 UTC = 10:13 IST
   workflow_dispatch:
     inputs:
       force:
@@ -24,6 +28,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # to see when heartbeat-daily last succeeded
 
 concurrency:
   group: pulse-keepalive
@@ -66,3 +71,20 @@ jobs:
           git push
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Committed a timestamp to keep the scheduled workflows enabled." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if heartbeat-daily has stopped succeeding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LAST="$(gh run list -R "$GITHUB_REPOSITORY" -w heartbeat-daily -s success -L 1 --json createdAt -q '.[0].createdAt')"
+          if [ -z "$LAST" ]; then
+            echo "::error::heartbeat-daily has never succeeded. Check the Actions tab."
+            exit 1
+          fi
+          AGE_H=$(( ( $(date -u +%s) - $(date -u -d "$LAST" +%s) ) / 3600 ))
+          echo "Last successful heartbeat: $LAST (${AGE_H}h ago)."
+          if [ "$AGE_H" -gt 36 ]; then
+            echo "::error::No successful heartbeat for ${AGE_H}h. Runs may be held for approval ('action required'), disabled, or failing - open the Actions tab. Your databases are NOT being pinged."
+            exit 1
+          fi

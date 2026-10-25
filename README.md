@@ -31,7 +31,8 @@ counts, on a schedule, records the result, alerts you when a check fails, and pu
 
 ## Adding a project is one entry in one file
 
-That is the design goal everything else bends around. No code, no workflow edits:
+That is the design goal everything else bends around. No code changes; a project that needs a
+secret also needs one `env:` line in the workflow (see [SETUP.md §3](./SETUP.md#3-secrets)):
 
 ```jsonc
 {

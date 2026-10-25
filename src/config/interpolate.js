@@ -85,8 +85,10 @@ export function interpolate(value, env, options = {}) {
         problems: missing.map((ref) => `${ref.name} (used at ${ref.path})`),
         hint: [
           'Set them as GitHub repository secrets: Settings > Secrets and variables > Actions.',
-          'The heartbeat workflows pass every repository secret through, so no workflow edit is needed',
-          '(unless you removed the PULSE_SECRETS_JSON line, in which case add an env: entry too).',
+          'Then add a matching line to the env: block of .github/workflows/heartbeat-daily.yml:',
+          ...unique(missing.map((ref) => ref.name)).map(
+            (name) => `  ${name}: \${{ secrets.${name} }}`
+          ),
           'Locally, export them in your shell first:',
           ...unique(missing.map((ref) => ref.name)).map((name) => `  export ${name}='...'`),
         ].join('\n'),

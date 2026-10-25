@@ -56,7 +56,8 @@ Settings → Secrets and variables → Actions → New repository secret:
 - Name: **`PULSE_TARGETS_JSON`**
 - Value: the entire contents of `my-targets.json`
 
-Then add one secret per `${NAME}` you referenced (naming convention in §3).
+Then add one secret per `${NAME}` you referenced, plus one matching `env:` line in
+`heartbeat-daily.yml` (§3).
 
 Repeat those two steps — edit the file, re-paste the secret — whenever you add a project. Keep
 `my-targets.json` on your machine; it is the editable copy.
@@ -266,25 +267,20 @@ history, so every project gets a dashboard card with a real uptime strip.
 Add them at **Settings → Secrets and variables → Actions → New repository secret**. Paste the raw
 value only — no quotes, no `export`, no trailing newline.
 
-Then reference it in `config/targets.json` as `${EXAMPLE_NOTES_SUPABASE_ANON_KEY}` and list it in
-that target's `requiredSecrets`. You do **not** need to touch any workflow file: the heartbeat
-workflows pass every repository secret to the pinger as one JSON blob (`PULSE_SECRETS_JSON:
-${{ toJSON(secrets) }}`), which is what keeps adding a project to a single-file change.
-
-**The trade-off in that line, stated plainly:** the pinger process can read every repository secret,
-not only the ones its targets use. It is the same code, from your own default branch, that would have
-read them from individual `env:` entries anyway, and Actions never hands secrets to a pull request
-from a fork — but if you keep unrelated high-value secrets in this repo, that is a reason not to.
-To opt out, delete the `PULSE_SECRETS_JSON` line from both heartbeat workflows and list what you
-need explicitly instead:
+Then reference it in your targets as `${EXAMPLE_NOTES_SUPABASE_ANON_KEY}`, list it in that
+target's `requiredSecrets`, **and add one line for it** to the `env:` block of the "Run the checks"
+step in `.github/workflows/heartbeat-daily.yml`:
 
 ```yaml
-env:
-  EXAMPLE_NOTES_SUPABASE_ANON_KEY: ${{ secrets.EXAMPLE_NOTES_SUPABASE_ANON_KEY }}
+EXAMPLE_NOTES_SUPABASE_ANON_KEY: ${{ secrets.EXAMPLE_NOTES_SUPABASE_ANON_KEY }}
 ```
 
-You then have to add a line there for each new project, which is the cost of the least-privilege
-version. Validation still catches a reference you forgot to wire up.
+If you forget, the run fails before any request and the error prints the exact line to add.
+
+**Never shortcut this with `${{ toJSON(secrets) }}`.** It is the pattern secret-stealing malware
+uses, and since July 2026 GitHub holds any public workflow containing it as "potentially
+malicious": every scheduled run sits at _action required_ and nothing executes until you approve
+each one by hand. Pulse used it until October 2026, and it silently stopped all pings for 25 days.
 
 ### What may go in the config file, and what must never
 
